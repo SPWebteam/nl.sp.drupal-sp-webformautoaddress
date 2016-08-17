@@ -4,7 +4,7 @@
  */
 
 (function ($, Drupal, window, document, undefined) {
-    $.fn.webformAutoAddressInject = function (arguments) {
+    $.fn.SPwebformAutoAddressInject = function (arguments) {
       // Parse the JSON argument.
       var data = JSON.parse(arguments);
 

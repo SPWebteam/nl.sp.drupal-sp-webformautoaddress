@@ -31,7 +31,7 @@ function sp_webformautoaddress_webform_component_info() {
 
   $components['address_auto'] = array(
     'label' => t('Address (autocomplete)'),
-    'description' => t('Address is autocompleted through the API of postcode.nl, using postal code and house number.'),
+    'description' => t('Address is autocompleted through the API of pro6pp.nl, using postal code and house number.'),
     'features' => array(
       'analysis' => FALSE,
       'csv' => TRUE,
@@ -82,14 +82,8 @@ function _webform_edit_address_auto($component) {
   $form['extra']['key'] = array(
     '#type' => 'textfield',
     '#title' => t('Key'),
-    '#description' => t('Provide the key (i.e., username) for the postcode.nl service.'),
+    '#description' => t('Provide the key for the pro6pp.nl service.'),
     '#default_value' => $component['extra']['key'],
-  );
-  $form['extra']['secret'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Secret'),
-    '#description' => t('Provide the secret (i.e., password) for the postcode.nl service.'),
-    '#default_value' => $component['extra']['secret'],
   );
 
   $form['extra']['placeholders'] = array(
@@ -111,10 +105,10 @@ function _webform_render_address_auto($component, $value = NULL, $filter = TRUE)
     '#type' => 'container',
     '#attached' => array(
       'css' => array(
-        drupal_get_path('module', 'webformautoaddress') . '/css/webformautoaddress.css',
+        drupal_get_path('module', 'webformautoaddress') . '/css/sp_webformautoaddress.css',
       ),
       'js' => array(
-        drupal_get_path('module', 'webformautoaddress') . '/js/webformautoaddress.js',
+        drupal_get_path('module', 'webformautoaddress') . '/js/sp_webformautoaddress.js',
       ),
     ),
     '#weight' => $component['weight'],
@@ -215,7 +209,7 @@ function _webform_render_address_auto($component, $value = NULL, $filter = TRUE)
  *     hook_form_alter() function to add AJAX components).
  */
 function sp_webformautoaddress_ajax_callback($form, $form_state) {
-  // To authenticate to the postcode.nl API, we need the login information.
+  // To authenticate to the pro6pp.nl API, we need the login information.
   $key = $form_state['triggering_element']['#webform_component']['extra']['key'];
   $secret = $form_state['triggering_element']['#webform_component']['extra']['secret'];
 
@@ -258,11 +252,11 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
 /**
  * Retrieve street name and city belonging to postal code and house number.
  *
- * This function makes a call to the postcode.nl API to get the street name and
+ * This function makes a call to the pro6pp.nl API to get the street name and
  * city that is associated with the postal code and house number.
  *
  * @param string $key
- *   The key that should be used to identify at the postcode.nl API service.
+ *   The key that should be used to identify at the pro6pp.nl API service.
  * @param string $secret
  *   The secret that belongs to the $key.
  * @param string $postal_code
@@ -298,7 +292,7 @@ function sp_webformautoaddress_postcode_nl_lookup($key, $secret, $postal_code, $
     }
     else {
       // Construct the URL to perform the lookup with.
-      // $url = 'https://' . $key . ':' . $secret . '@api.postcode.nl/rest/addresses/' . $postal_code . '/' . $house_number . '/' . $house_number_addition;
+      // $url = 'https://' . $key . ':' . $secret . '@api.pro6pp.nl/rest/addresses/' . $postal_code . '/' . $house_number . '/' . $house_number_addition;
       $url = 'https://api.pro6pp.nl/v1/autocomplete?auth_key='.$key.'&nl_sixpp='.$postal_code.'&format=json';
 
       $response = drupal_http_request(url($url));
@@ -321,7 +315,7 @@ function sp_webformautoaddress_postcode_nl_lookup($key, $secret, $postal_code, $
 }
 
 /**
- * Parse a postal code to be used in the request to postcode.nl API.
+ * Parse a postal code to be used in the request to pro6pp.nl API.
  *
  * @param string $postal_code
  *   The postal code that should be normalized.
