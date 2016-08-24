@@ -405,7 +405,7 @@ function _webform_theme_sp_address_auto() {
  *
  * @ingroup themeable
  */
-function theme_webform_display_address_auto(array $variables) {
+function theme_webform_display_sp_address_auto(array $variables) {
   $element = $variables['element'];
   $value = $element['#format'] == 'html' ? check_plain($element['#value']) : $element['#value'];
 
@@ -415,7 +415,7 @@ function theme_webform_display_address_auto(array $variables) {
 /**
  * Implements _webform_table_component().
  */
-function _webform_table_address_auto($component, $value) {
+function _webform_table_sp_address_auto($component, $value) {
   return check_plain($value['street_name'] . ' ' . $value['house_number']) . '<br />' .
          check_plain($value['postal_code'] . ' ' . $value['city']);
 }
@@ -423,7 +423,7 @@ function _webform_table_address_auto($component, $value) {
 /**
  * Implements _webform_csv_headers_component().
  */
-function _webform_csv_headers_address_auto($component, $export_options) {
+function _webform_csv_headers_sp_address_auto($component, $export_options) {
   $header = array();
   $header[0] = array('');
   $header[1] = array($component['name']);
@@ -440,7 +440,7 @@ function _webform_csv_headers_address_auto($component, $export_options) {
 /**
  * Implements _webform_csv_data_component().
  */
-function _webform_csv_data_address_auto($component, $export_options, $value) {
+function _webform_csv_data_sp_address_auto($component, $export_options, $value) {
   $return = array();
 
   $return[] = $value['street_name'];
