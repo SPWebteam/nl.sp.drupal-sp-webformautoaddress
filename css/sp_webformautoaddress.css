@@ -1,3 +1,7 @@
+body {
+	background: #f00 !important;
+}
+
 .webform-component-address-auto-postal-code,
 .webform-component-address-auto-house-number {
   float: left;

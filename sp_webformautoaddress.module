@@ -105,10 +105,10 @@ function _webform_render_address_auto($component, $value = NULL, $filter = TRUE)
     '#type' => 'container',
     '#attached' => array(
       'css' => array(
-        drupal_get_path('module', 'webformautoaddress') . '/css/sp_webformautoaddress.css',
+        drupal_get_path('module', 'sp_webformautoaddress') . '/css/sp_webformautoaddress.css',
       ),
       'js' => array(
-        drupal_get_path('module', 'webformautoaddress') . '/js/sp_webformautoaddress.js',
+        drupal_get_path('module', 'sp_webformautoaddress') . '/js/sp_webformautoaddress.js',
       ),
     ),
     '#weight' => $component['weight'],
@@ -122,7 +122,7 @@ function _webform_render_address_auto($component, $value = NULL, $filter = TRUE)
     '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
     '#default_value' => isset($value['postal_code']) ? $value['postal_code'] : '',
     '#required' => $component['required'],
-    '#attributes' => array(),
+    '#attributes' => array('autcomplete' => 'on'),
     '#size' => 12,
     '#theme_wrappers' => array('webform_element'),
     '#webform_component' => array('type' => $component['type'] . '_postal_code') + $component,
@@ -163,7 +163,7 @@ function _webform_render_address_auto($component, $value = NULL, $filter = TRUE)
   );
 
   // Check whether the key and secret are set.
-  if (!empty($component['extra']['key']) && !empty($component['extra']['secret'])) {
+  if (!empty($component['extra']['key'])) {
     $elements['postal_code']['#ajax'] = array(
       'callback' => 'sp_webformautoaddress_ajax_callback',
     );
@@ -176,6 +176,8 @@ function _webform_render_address_auto($component, $value = NULL, $filter = TRUE)
     $elements['city']['#attributes'] = array(
       'class' => array(drupal_html_class('ajax-callback-city--' . $component['form_key'])),
     );
+  } else {
+    drupal_set_message(t('Pro6pp key is not not set for this form'), 'error', FALSE);
   }
 
   // Set the label as a place holder.
@@ -228,24 +230,27 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
   $postal_code = $values['postal_code'];
   $house_number = $values['house_number'];
 
-  // Perform the lookup using the service.
-  $data = sp_webformautoaddress_postcode_nl_lookup($key, $secret, $postal_code, $house_number);
+  // Perform the lookup
+  if(!empty($postal_code) && !empty($house_number)) {
+    $data = sp_webformautoaddress_pcapi_lookup($key, $secret, $postal_code, $house_number);
+    
+    // React on the provided information.
+    if ($data['status'] == 'ok') {
 
-  // React on the provided information.
-  if (!empty($data['street']) && !empty($data['city'])) {
-    $commands = array();
-    $arguments = array(
-      'formKey' => $form_key,
-      'street' => check_plain($data['street']),
-      'city' => check_plain($data['city']),
-    );
-    $arguments = drupal_json_encode($arguments);
-    $commands[] = ajax_command_invoke(NULL, 'webformAutoAddressInject', array($arguments));
+      $commands = array();
+      $arguments = array(
+        'formKey' => $form_key,
+        'street' => check_plain($data['results'][0]['street']),
+        'city' => check_plain($data['results'][0]['city']),
+      );
+      $arguments = drupal_json_encode($arguments);
+      $commands[] = ajax_command_invoke(NULL, 'SPwebformAutoAddressInject', array($arguments));
 
-    return array(
-      '#type' => 'ajax',
-      '#commands' => $commands,
-    );
+      return array(
+        '#type' => 'ajax',
+        '#commands' => $commands,
+      );
+    }
   }
 }
 
@@ -268,7 +273,7 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
  *   The name of the street can be found at the index 'street' and the name of
  *   the name of the city at the index 'city' in the array.
  */
-function sp_webformautoaddress_postcode_nl_lookup($key, $secret, $postal_code, $house_number) {
+function sp_webformautoaddress_pcapi_lookup($key, $secret, $postal_code, $house_number) {
   // First, parse the postal code and house number (which should split the
   // addition).
   $postal_code = sp_webformautoaddress_parse_postal_code($postal_code);
@@ -279,22 +284,22 @@ function sp_webformautoaddress_postcode_nl_lookup($key, $secret, $postal_code, $
     return array();
   }
 
-  // We prevent making unnecessary lookups by caching results, also wrong
-  // lookups!
-  $cache_key = 'webformautoaddress:' . $postal_code . ':' . $house_number . ':' . $house_number_addition;
+  // We prevent making unnecessary lookups by caching results, 
+  // also wrong lookups!
+  $cache_key = 'sp_webformautoaddress:' . $postal_code . ':' . $house_number . ':' . $house_number_addition;
 
   // Use the local memory as the first level cache.
   $data = &drupal_static(__FUNCTION__);
   if (!isset($data)) {
     // When not stored in local memory, check the cache stored in the database.
-    if ($cache = cache_get($cache_key)) {
+    if(FALSE) {
+    //if ($cache = cache_get($cache_key)) {
       $data = $cache->data;
     }
     else {
       // Construct the URL to perform the lookup with.
       // $url = 'https://' . $key . ':' . $secret . '@api.pro6pp.nl/rest/addresses/' . $postal_code . '/' . $house_number . '/' . $house_number_addition;
       $url = 'https://api.pro6pp.nl/v1/autocomplete?auth_key='.$key.'&nl_sixpp='.$postal_code.'&format=json';
-
       $response = drupal_http_request(url($url));
 
       // When the lookup went correctly, parse the JSON data.
@@ -323,7 +328,7 @@ function sp_webformautoaddress_postcode_nl_lookup($key, $secret, $postal_code, $
  * @return string
  *   The normalized postal code.
  */
-function sp_sp_webformautoaddress_parse_postal_code($postal_code) {
+function sp_webformautoaddress_parse_postal_code($postal_code) {
   // First, remove any whitespaces.
   $postal_code = str_replace(' ', '', trim($postal_code));
 
