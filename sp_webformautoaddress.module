@@ -29,8 +29,8 @@ function sp_webformautoaddress_help($path, $arg) {
 function sp_webformautoaddress_webform_component_info() {
   $components = array();
 
-  $components['address_auto'] = array(
-    'label' => t('Address (autocomplete)'),
+  $components['sp_address_auto'] = array(
+    'label' => t('Automcomplete address (SP)'),
     'description' => t('Address is autocompleted through the API of pro6pp.nl, using postal code and house number.'),
     'features' => array(
       'analysis' => FALSE,
@@ -55,7 +55,7 @@ function sp_webformautoaddress_webform_component_info() {
 /**
  * Implements _webform_defaults_component().
  */
-function _webform_defaults_address_auto() {
+function _webform_defaults_sp_address_auto() {
   return array(
     'name' => '',
     'form_key' => NULL,
@@ -74,7 +74,7 @@ function _webform_defaults_address_auto() {
 /**
  * Implements _webform_edit_component().
  */
-function _webform_edit_address_auto($component) {
+function _webform_edit_sp_address_auto($component) {
   $form = array();
 
   // In order to autocomplete the address, the key and secret are necessary
@@ -99,7 +99,7 @@ function _webform_edit_address_auto($component) {
 /**
  * Implements _webform_render_component().
  */
-function _webform_render_address_auto($component, $value = NULL, $filter = TRUE) {
+function _webform_render_sp_address_auto($component, $value = NULL, $filter = TRUE) {
   // Wrap the form in a container, in order to correctly apply the weight.
   $elements = array(
     '#type' => 'container',
@@ -369,7 +369,7 @@ function sp_webformautoaddress_parse_house_number($house_number_full) {
 /**
  * Implements _webform_display_component().
  */
-function _webform_display_address_auto($component, $value, $format = 'html') {
+function _webform_display_sp_address_auto($component, $value, $format = 'html') {
   return array(
     '#title' => $component['name'],
     '#weight' => $component['weight'],
@@ -385,7 +385,7 @@ function _webform_display_address_auto($component, $value, $format = 'html') {
 /**
  * Implements _webform_theme_component().
  */
-function _webform_theme_address_auto() {
+function _webform_theme_sp_address_auto() {
   return array(
     'webform_display_address_auto' => array(
       'render element' => 'element',
