@@ -239,7 +239,7 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
 
       $commands = array();
       $arguments = array(
-        'formKey' => $form_key,
+        'formKey' => drupal_clean_css_identifier($form_key), // we are selecting by the css class in the ajax call
         'street' => check_plain($data['results'][0]['street']),
         'city' => check_plain($data['results'][0]['city']),
       );
