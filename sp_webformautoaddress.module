@@ -240,8 +240,8 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
       $commands = array();
       $arguments = array(
         'formKey' => drupal_clean_css_identifier($form_key), // we are selecting by the css class in the ajax call
-        'street' => check_plain($data['results'][0]['street']),
-        'city' => check_plain($data['results'][0]['city']),
+        'street' => filter_xss($data['results'][0]['street']),
+        'city' => filter_xss($data['results'][0]['city']),
       );
       $arguments = drupal_json_encode($arguments);
       $commands[] = ajax_command_invoke(NULL, 'SPwebformAutoAddressInject', array($arguments));
