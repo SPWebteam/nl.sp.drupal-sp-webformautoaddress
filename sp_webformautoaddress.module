@@ -30,8 +30,8 @@ function sp_webformautoaddress_webform_component_info() {
   $components = array();
 
   $components['sp_address_auto'] = array(
-    'label' => t('Automcomplete address (SP)'),
-    'description' => t('Address is autocompleted through the API of pro6pp.nl, using postal code and house number.'),
+    'label' => t('Pro6pp Address completion'),
+    'description' => t('Address is autocompleted through the API of pro6pp.nl, using postal_code and house_number fields.'),
     'features' => array(
       'analysis' => FALSE,
       'csv' => TRUE,
@@ -63,10 +63,8 @@ function _webform_defaults_sp_address_auto() {
     'pid' => 0,
     'weight' => 0,
     'extra' => array(
-      'key' => '',
       'secret' => '',
-      'placeholders' => FALSE,
-      'private' => FALSE,
+      'private' => TRUE,
     ),
   );
 }
@@ -77,22 +75,6 @@ function _webform_defaults_sp_address_auto() {
 function _webform_edit_sp_address_auto($component) {
   $form = array();
 
-  // In order to autocomplete the address, the key and secret are necessary
-  // for authentication.
-  $form['extra']['key'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Key'),
-    '#description' => t('Provide the key for the pro6pp.nl service.'),
-    '#default_value' => $component['extra']['key'],
-  );
-
-  $form['extra']['placeholders'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Placeholders'),
-    '#description' => t('Use a placeholder instead of the label. The placeholder will be shown in the field until the user starts entering a value.'),
-    '#default_value' => $component['extra']['placeholders'],
-  );
-
   return $form;
 }
 
@@ -102,7 +84,7 @@ function _webform_edit_sp_address_auto($component) {
 function _webform_render_sp_address_auto($component, $value = NULL, $filter = TRUE) {
   // Wrap the form in a container, in order to correctly apply the weight.
   $elements = array(
-    '#type' => 'container',
+    '#type' => 'hidden',
     '#attached' => array(
       'css' => array(
         drupal_get_path('module', 'sp_webformautoaddress') . '/css/sp_webformautoaddress.css',
@@ -115,85 +97,6 @@ function _webform_render_sp_address_auto($component, $value = NULL, $filter = TR
     '#theme_wrappers' => array('webform_element'),
     '#webform_component' => $component,
   );
-
-  $elements['postal_code'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Postal code'),
-    '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
-    '#default_value' => isset($value['postal_code']) ? $value['postal_code'] : '',
-    '#required' => $component['required'],
-    '#attributes' => array('autcomplete' => 'on'),
-    '#size' => 12,
-    '#theme_wrappers' => array('webform_element'),
-    '#webform_component' => array('type' => $component['type'] . '_postal_code') + $component,
-  );
-
-  $elements['house_number'] = array(
-    '#type' => 'textfield',
-    '#title' => t('House number'),
-    '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
-    '#default_value' => isset($value['house_number']) ? $value['house_number'] : '',
-    '#required' => $component['required'],
-    '#attributes' => array(),
-    '#size' => 12,
-    '#theme_wrappers' => array('webform_element'),
-    '#webform_component' => array('type' => $component['type'] . '_house_number') + $component,
-  );
-
-  $elements['street_name'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Street name'),
-    '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
-    '#default_value' => isset($value['street_name']) ? $value['street_name'] : '',
-    '#required' => $component['required'],
-    '#attributes' => array(),
-    '#theme_wrappers' => array('webform_element'),
-    '#webform_component' => array('type' => $component['type'] . '_street_name') + $component,
-  );
-
-  $elements['city'] = array(
-    '#type' => 'textfield',
-    '#title' => t('City'),
-    '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
-    '#default_value' => isset($value['city']) ? $value['city'] : '',
-    '#required' => $component['required'],
-    '#attributes' => array(),
-    '#theme_wrappers' => array('webform_element'),
-    '#webform_component' => array('type' => $component['type'] . '_city') + $component,
-  );
-
-  // Check whether the key and secret are set.
-  if (!empty($component['extra']['key'])) {
-    $elements['postal_code']['#ajax'] = array(
-      'callback' => 'sp_webformautoaddress_ajax_callback',
-    );
-    $elements['house_number']['#ajax'] = array(
-      'callback' => 'sp_webformautoaddress_ajax_callback',
-    );
-    $elements['street_name']['#attributes'] = array(
-      'class' => array(drupal_html_class('ajax-callback-street-name--' . $component['form_key'])),
-    );
-    $elements['city']['#attributes'] = array(
-      'class' => array(drupal_html_class('ajax-callback-city--' . $component['form_key'])),
-    );
-  } else {
-    drupal_set_message(t('Pro6pp key is not not set for this form'), 'error', FALSE);
-  }
-
-  // Set the label as a place holder.
-  if ($component['extra']['placeholders']) {
-    $elements['postal_code']['#title_display'] = 'invisible';
-    $elements['postal_code']['#attributes']['placeholder'] = t('Postal code');
-
-    $elements['house_number']['#title_display'] = 'invisible';
-    $elements['house_number']['#attributes']['placeholder'] = t('House number');
-
-    $elements['street_name']['#title_display'] = 'invisible';
-    $elements['street_name']['#attributes']['placeholder'] = t('Street name');
-
-    $elements['city']['#title_display'] = 'invisible';
-    $elements['city']['#attributes']['placeholder'] = t('City');
-  }
 
   return $elements;
 }
@@ -211,10 +114,6 @@ function _webform_render_sp_address_auto($component, $value = NULL, $filter = TR
  *     hook_form_alter() function to add AJAX components).
  */
 function sp_webformautoaddress_ajax_callback($form, $form_state) {
-  // To authenticate to the pro6pp.nl API, we need the login information.
-  $key = $form_state['triggering_element']['#webform_component']['extra']['key'];
-  $secret = $form_state['triggering_element']['#webform_component']['extra']['secret'];
-
   // Get the key used for this Webform component.
   $form_key = $form_state['triggering_element']['#webform_component']['form_key'];
 
@@ -232,7 +131,7 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
 
   // Perform the lookup
   if(!empty($postal_code) && !empty($house_number)) {
-    $data = sp_webformautoaddress_pcapi_lookup($key, $secret, $postal_code, $house_number);
+    $data = sp_webformautoaddress_pcapi_lookup($postal_code, $house_number);
     
     // React on the provided information.
     if ($data['status'] == 'ok') {
@@ -273,7 +172,7 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
  *   The name of the street can be found at the index 'street' and the name of
  *   the name of the city at the index 'city' in the array.
  */
-function sp_webformautoaddress_pcapi_lookup($key, $secret, $postal_code, $house_number) {
+function sp_webformautoaddress_pcapi_lookup($postal_code, $house_number) {
   // First, parse the postal code and house number (which should split the
   // addition).
   $postal_code = sp_webformautoaddress_parse_postal_code($postal_code);
@@ -298,7 +197,7 @@ function sp_webformautoaddress_pcapi_lookup($key, $secret, $postal_code, $house_
     }
     else {
       // Construct the URL to perform the lookup with.
-      // $url = 'https://' . $key . ':' . $secret . '@api.pro6pp.nl/rest/addresses/' . $postal_code . '/' . $house_number . '/' . $house_number_addition;
+      $key = variable_get('pro6pp_key');
       $url = 'https://api.pro6pp.nl/v1/autocomplete?auth_key='.$key.'&nl_sixpp='.$postal_code.'&format=json';
       $response = drupal_http_request(url($url));
 
