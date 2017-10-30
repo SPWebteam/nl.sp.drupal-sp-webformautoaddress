@@ -11,10 +11,7 @@
 function sp_webformautoaddress_help($path, $arg) {
   switch ($path) {
     case 'admin/help#webformautoaddress':
-      // Construct the path of this module's readme file.
       $path_readme = drupal_get_path('module', 'webformautoaddress') . '/README.txt';
-
-      // If the readme is available, return the contents.
       if (file_exists($path_readme)) {
         $readme = file_get_contents($path_readme);
 
@@ -23,95 +20,47 @@ function sp_webformautoaddress_help($path, $arg) {
   }
 }
 
-/**
- * Implements hook_webform_component_info().
- */
-function sp_webformautoaddress_webform_component_info() {
-  $components = array();
+function sp_webformautoaddress_menu() {
 
-  $components['sp_address_auto'] = array(
-    'label' => t('Pro6pp Address completion'),
-    'description' => t('Address is autocompleted through the API of pro6pp.nl, using postal_code and house_number fields.'),
-    'features' => array(
-      'analysis' => FALSE,
-      'csv' => TRUE,
-      'email' => TRUE,
-      'email_address' => FALSE,
-      'email_name' => FALSE,
-      'required' => TRUE,
-      'conditional' => TRUE,
-      'title_display' => TRUE,
-      'title_inline' => TRUE,
-      'private' => FALSE,
-      'group' => FALSE,
-      'spam_analysis' => FALSE,
-      'attachment' => FALSE,
-    ),
-  );
+  $items = array();
 
-  return $components;
+  $items['admin/settings/sp-webformautoaddress'] = array(
+    'title' => 'SP Webform autoaddress settings',
+    'description' => t('Set your api key here'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('sp_webformautoaddress_admin'),
+    'access arguments' => array('administer SP Webform Auto Address settings'),
+    'type' => MENU_NORMAL_ITEM,
+   );
+
+  return $items;
 }
 
-/**
- * Implements _webform_defaults_component().
- */
-function _webform_defaults_sp_address_auto() {
-  return array(
-    'name' => '',
-    'form_key' => NULL,
-    'required' => FALSE,
-    'pid' => 0,
-    'weight' => 0,
-    'extra' => array(
-      'secret' => '',
-      'private' => TRUE,
-    ),
-  );
-}
-
-/**
- * Implements _webform_edit_component().
- */
-function _webform_edit_sp_address_auto($component) {
+function sp_webformautoaddress_admin() {
   $form = array();
 
-  return $form;
-}
-
-/**
- * Implements _webform_render_component().
- */
-function _webform_render_sp_address_auto($component, $value = NULL, $filter = TRUE) {
-  // Wrap the form in a container, in order to correctly apply the weight.
-  $elements = array(
-    '#type' => 'hidden',
-    '#attached' => array(
-      'css' => array(
-        drupal_get_path('module', 'sp_webformautoaddress') . '/css/sp_webformautoaddress.css',
-      ),
-      'js' => array(
-        drupal_get_path('module', 'sp_webformautoaddress') . '/js/sp_webformautoaddress.js',
-      ),
-    ),
-    '#weight' => $component['weight'],
-    '#theme_wrappers' => array('webform_element'),
-    '#webform_component' => $component,
+  $form['pro6ppkey'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Pro6pp Key'),
+    '#default_value' => variable_get('Pro6pp_key', ''),
+    '#size' => 72,
+    '#maxlength' => 72,
+    '#description' => t("You can get one of these keys at www.pro6pp.nl"),
+    '#required' => FALSE,
   );
 
-  return $elements;
+  return system_settings_form($form);
+}
+
+function sp_webformautoaddress_admin_validate($form, &$form_state) {
+  $key = $form_state['values']['pro6ppkey'];
+  if($key !== 'abcd') {
+     form_set_error('pro6ppkey', t('This is not a valid pro6pp key'));
+  }
 }
 
 /**
  * Retrieve street name and city belonging to postal code and house number.
- *
- * Callback for _webform_render_address_auto().
- *
- * NB: Normally, this function should be kept as simple as possible (i.e., just
- *     return the portion of the form that should be adjusted). However, since
- *     Webform doesn't provide the $form_state in a simple manner and we only
- *     provide additional functionallity to help the visitor, we allow us to do
- *     a little bit more in this function.. (otherwise we have to use the
- *     hook_form_alter() function to add AJAX components).
  */
 function sp_webformautoaddress_ajax_callback($form, $form_state) {
   // Get the key used for this Webform component.
@@ -159,10 +108,6 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
  * This function makes a call to the pro6pp.nl API to get the street name and
  * city that is associated with the postal code and house number.
  *
- * @param string $key
- *   The key that should be used to identify at the pro6pp.nl API service.
- * @param string $secret
- *   The secret that belongs to the $key.
  * @param string $postal_code
  *   The postal code of the address.
  * @param string $house_number
@@ -197,7 +142,7 @@ function sp_webformautoaddress_pcapi_lookup($postal_code, $house_number) {
     }
     else {
       // Construct the URL to perform the lookup with.
-      $key = variable_get('pro6pp_key');
+      $key = variable_get('pro6pp_key'); //
       $url = 'https://api.pro6pp.nl/v1/autocomplete?auth_key='.$key.'&nl_sixpp='.$postal_code.'&format=json';
       $response = drupal_http_request(url($url));
 
