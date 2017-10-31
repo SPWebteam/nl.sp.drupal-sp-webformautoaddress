@@ -8,98 +8,225 @@
 /**
  * Implements hook_help().
  */
-function sp_webformautoaddress_help($path, $arg) {
-  switch ($path) {
-    case 'admin/help#webformautoaddress':
-      $path_readme = drupal_get_path('module', 'webformautoaddress') . '/README.txt';
-      if (file_exists($path_readme)) {
-        $readme = file_get_contents($path_readme);
+function sp_webformautoaddress_help($path, $arg)
+{
+    switch ($path) {
+        case 'admin/help#webformautoaddress':
+            $path_readme = drupal_get_path('module', 'webformautoaddress') . '/README.txt';
+            if (file_exists($path_readme)) {
+                $readme = file_get_contents($path_readme);
 
-        return '<h1>README.txt</h1><pre>' . check_plain($readme) . '</pre>';
-      }
-  }
+                return '<h1>README.txt</h1><pre>' . check_plain($readme) . '</pre>';
+            }
+    }
 }
 
-function sp_webformautoaddress_menu() {
+/**
+ * Implements hook_menu().
+ */
+function sp_webformautoaddress_menu()
+{
 
-  $items = array();
+    $items = array();
 
-  $items['admin/settings/sp-webformautoaddress'] = array(
-    'title' => 'SP Webform autoaddress settings',
-    'description' => t('Set your api key here'),
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('sp_webformautoaddress_admin'),
-    'access arguments' => array('administer SP Webform Auto Address settings'),
-    'type' => MENU_NORMAL_ITEM,
-   );
+    $items['admin/config/sp-webformautoaddress'] = array(
+        'title'            => 'SP Webform autoaddress settings',
+        'description'      => t('Set your api key here'),
+        'page callback'    => 'drupal_get_form',
+        'page arguments'   => array('sp_webformautoaddress_admin'),
+        'access arguments' => array('administer SP Webform Auto Address settings'),
+        'type'             => MENU_NORMAL_ITEM,
+    );
 
-  return $items;
+    return $items;
 }
 
-function sp_webformautoaddress_admin() {
-  $form = array();
+/**
+ * Defines system settings form
+ */
+function sp_webformautoaddress_admin()
+{
+    $form = array();
 
-  $form['pro6ppkey'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Pro6pp Key'),
-    '#default_value' => variable_get('Pro6pp_key', ''),
-    '#size' => 72,
-    '#maxlength' => 72,
-    '#description' => t("You can get one of these keys at www.pro6pp.nl"),
-    '#required' => FALSE,
-  );
+    // Add key for the pro6pp api
+    $form['pro6pp_key'] = array(
+        '#type'          => 'textfield',
+        '#title'         => t('Pro6pp API Key'),
+        '#default_value' => variable_get('pro6pp_key', ''),
+        '#size'          => 72,
+        '#maxlength'     => 72,
+        '#description'   => t("You can get one of these keys at www.pro6pp.nl"),
+        '#required'      => false,
+    );
 
-  return system_settings_form($form);
+    return system_settings_form($form);
 }
 
-function sp_webformautoaddress_admin_validate($form, &$form_state) {
-  $key = $form_state['values']['pro6ppkey'];
-  if($key !== 'abcd') {
-     form_set_error('pro6ppkey', t('This is not a valid pro6pp key'));
-  }
+/**
+ * Defines system settings form validation
+ */
+function sp_webformautoaddress_admin_validate($form, &$form_state)
+{
+    $key = $form_state['values']['pro6pp_key'];
+    if (!preg_match('/^[\w-]+$/', $key)) {
+        form_set_error('pro6pp_key', t('This is not a valid pro6pp key.'));
+    }
+}
+
+/**
+ * When a webform has pro6pp autocompletion enabled
+ * the form is altered to include the ajax callback on the 'auto-wrapper' fieldset
+ */
+function sp_webformautoaddress_form_alter(&$form, &$form_state, $form_id)
+{
+    if (isset($form['#node']->nid)) {
+        if (_check_webform_enabled($form['#node']->nid)) {
+            if (_check_form_components($form)) {
+                _webform_add_pro6pp_ajax($form);
+            }
+        }
+    }
+}
+
+/**
+ * Checks if the form has the required autocompletion components
+ */
+function _check_form_components($form)
+{
+
+    if (!isset($form['#node']->webform['components'])) {
+        return false;
+    }
+
+    // Check if the required components / fields are available
+    $required  = array('auto-wrapper', 'auto-pc', 'auto-house', 'auto-street');
+    $available = array();
+
+    foreach ($form['#node']->webform['components'] as $key => $component) {
+        if (!empty($component['extra']['css_classes'])) {
+            $classes = explode(" ", $component['extra']['css_classes']);
+            foreach ($required as $value) {
+                $pos = array_search($value, $classes);
+                if ($pos !== false) {
+                    $available[] = $classes[$pos];
+                }
+            }
+        }
+    }
+    if (count($available) !== count($required)) {
+        drupal_set_message("Define the following components on your form, by giving them the required css classes: " . implode(",", $required), 'warning');
+        return false;
+    } else {
+        return true;
+    }
+}
+
+/**
+ * Adds ajax callback to the first auto-wrapper fieldset
+ */
+function _webform_add_pro6pp_ajax($form)
+{
+    dpm('added pro6pp');
+}
+
+/**
+ * Modifies the webform advanced settings to include a checkbox
+ * to enable pro6pp autocompletion
+ */
+function sp_webformautoaddress_form_webform_configure_form_alter(&$form, &$form_state, $form_id)
+{
+
+    $form['advanced']['pro6pp_enable'] = array(
+        '#type'          => 'checkbox',
+        '#title'         => t("Enable pro6pp autocompletion"),
+        '#default_value' => _check_webform_enabled($form['#node']->nid),
+    );
+
+    $form['#submit'][] = 'sp_webformautoaddress_webform_settings_submit';
+
+}
+
+/**
+ * Subumission of the webform settings now also stores
+ * the node ID of the form into the pro6pp_enabled_webforms system variable
+ */
+function sp_webformautoaddress_webform_settings_submit(&$form, &$form_state)
+{
+    $enabled      = unserialize(variable_get('pro6pp_enabled_webforms', array()));
+    $target       = $form['#node']->nid;
+    $key_location = array_search($target, $enabled);
+
+    if ($form['advanced']['pro6pp_enable']['#value'] == 1) {
+        if (!_check_webform_enabled($target) && $key_location == false) {
+            // Add the webform NID to the array when present
+            $enabled[] = $target;
+        }
+    } else {
+        // Remove the webform NID from the array when present
+        if (_check_webform_enabled($target) && $key_location !== false) {
+            unset($enabled[$key_location]);
+        }
+    }
+    variable_set('pro6pp_enabled_webforms', serialize($enabled));
+
+}
+
+/**
+ * Helper function to check if a form has autocompletion enabled.
+ */
+function _check_webform_enabled($webform_nid)
+{
+    $enabled = unserialize(variable_get('pro6pp_enabled_webforms', ''));
+    if (!empty($enabled)) {
+        if (array_search($webform_nid, $enabled) !== false) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
  * Retrieve street name and city belonging to postal code and house number.
  */
-function sp_webformautoaddress_ajax_callback($form, $form_state) {
-  // Get the key used for this Webform component.
-  $form_key = $form_state['triggering_element']['#webform_component']['form_key'];
+function sp_webformautoaddress_ajax_callback($form, $form_state)
+{
+    // Get the key used for this Webform component.
+    $form_key = $form_state['triggering_element']['#webform_component']['form_key'];
 
-  // Get the provided postal code and house number.
-  $values = $form_state['values'];
-  foreach ($form_state['triggering_element']['#parents'] as $parent) {
-    $values = $values[$parent];
+    // Get the provided postal code and house number.
+    $values = $form_state['values'];
+    foreach ($form_state['triggering_element']['#parents'] as $parent) {
+        $values = $values[$parent];
 
-    if ($parent == $form_key) {
-      break;
+        if ($parent == $form_key) {
+            break;
+        }
     }
-  }
-  $postal_code = $values['postal_code'];
-  $house_number = $values['house_number'];
+    $postal_code  = $values['postal_code'];
+    $house_number = $values['house_number'];
 
-  // Perform the lookup
-  if(!empty($postal_code) && !empty($house_number)) {
-    $data = sp_webformautoaddress_pcapi_lookup($postal_code, $house_number);
-    
-    // React on the provided information.
-    if ($data['status'] == 'ok') {
+    // Perform the lookup
+    if (!empty($postal_code) && !empty($house_number)) {
+        $data = sp_webformautoaddress_pcapi_lookup($postal_code, $house_number);
 
-      $commands = array();
-      $arguments = array(
-        'formKey' => drupal_clean_css_identifier($form_key), // we are selecting by the css class in the ajax call
-        'street' => filter_xss($data['results'][0]['street']),
-        'city' => filter_xss($data['results'][0]['city']),
-      );
-      $arguments = drupal_json_encode($arguments);
-      $commands[] = ajax_command_invoke(NULL, 'SPwebformAutoAddressInject', array($arguments));
+        // React on the provided information.
+        if ($data['status'] == 'ok') {
 
-      return array(
-        '#type' => 'ajax',
-        '#commands' => $commands,
-      );
+            $commands  = array();
+            $arguments = array(
+                'formKey' => drupal_clean_css_identifier($form_key), // we are selecting by the css class in the ajax call
+                'street'  => filter_xss($data['results'][0]['street']),
+                'city'    => filter_xss($data['results'][0]['city']),
+            );
+            $arguments  = drupal_json_encode($arguments);
+            $commands[] = ajax_command_invoke(null, 'SPwebformAutoAddressInject', array($arguments));
+
+            return array(
+                '#type'     => 'ajax',
+                '#commands' => $commands,
+            );
+        }
     }
-  }
 }
 
 /**
@@ -117,50 +244,50 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
  *   The name of the street can be found at the index 'street' and the name of
  *   the name of the city at the index 'city' in the array.
  */
-function sp_webformautoaddress_pcapi_lookup($postal_code, $house_number) {
-  // First, parse the postal code and house number (which should split the
-  // addition).
-  $postal_code = sp_webformautoaddress_parse_postal_code($postal_code);
-  list($house_number, $house_number_addition) = sp_webformautoaddress_parse_house_number($house_number);
+function sp_webformautoaddress_pcapi_lookup($postal_code, $house_number)
+{
+    // First, parse the postal code and house number (which should split the
+    // addition).
+    $postal_code                                = sp_webformautoaddress_parse_postal_code($postal_code);
+    list($house_number, $house_number_addition) = sp_webformautoaddress_parse_house_number($house_number);
 
-  // Both the postal code and the house number should have a value.
-  if (empty($postal_code) || empty($house_number)) {
-    return array();
-  }
-
-  // We prevent making unnecessary lookups by caching results, 
-  // also wrong lookups!
-  $cache_key = 'sp_webformautoaddress:' . $postal_code . ':' . $house_number . ':' . $house_number_addition;
-
-  // Use the local memory as the first level cache.
-  $data = &drupal_static(__FUNCTION__);
-  if (!isset($data)) {
-    // When not stored in local memory, check the cache stored in the database.
-    if(FALSE) {
-    //if ($cache = cache_get($cache_key)) {
-      $data = $cache->data;
+    // Both the postal code and the house number should have a value.
+    if (empty($postal_code) || empty($house_number)) {
+        return array();
     }
-    else {
-      // Construct the URL to perform the lookup with.
-      $key = variable_get('pro6pp_key'); //
-      $url = 'https://api.pro6pp.nl/v1/autocomplete?auth_key='.$key.'&nl_sixpp='.$postal_code.'&format=json';
-      $response = drupal_http_request(url($url));
 
-      // When the lookup went correctly, parse the JSON data.
-      if ($response->code == 200) {
-        $data = drupal_json_decode($response->data);
-      }
+    // We prevent making unnecessary lookups by caching results,
+    // also wrong lookups!
+    $cache_key = 'sp_webformautoaddress:' . $postal_code . ':' . $house_number . ':' . $house_number_addition;
 
-      // Store the result in the cache of the database.
-      //
-      // NB: if the lookup didn't responded in a correct result, we still store
-      // a 'mark' in the database. In this way also invalid lookups will be
-      // served from cache the next time.
-      cache_set($cache_key, $data, 'cache', time() + 900);
+    // Use the local memory as the first level cache.
+    $data = &drupal_static(__FUNCTION__);
+    if (!isset($data)) {
+        // When not stored in local memory, check the cache stored in the database.
+        if (false) {
+            //if ($cache = cache_get($cache_key)) {
+            $data = $cache->data;
+        } else {
+            // Construct the URL to perform the lookup with.
+            $key      = variable_get('pro6pp_key'); //
+            $url      = 'https://api.pro6pp.nl/v1/autocomplete?auth_key=' . $key . '&nl_sixpp=' . $postal_code . '&format=json';
+            $response = drupal_http_request(url($url));
+
+            // When the lookup went correctly, parse the JSON data.
+            if ($response->code == 200) {
+                $data = drupal_json_decode($response->data);
+            }
+
+            // Store the result in the cache of the database.
+            //
+            // NB: if the lookup didn't responded in a correct result, we still store
+            // a 'mark' in the database. In this way also invalid lookups will be
+            // served from cache the next time.
+            cache_set($cache_key, $data, 'cache', time() + 900);
+        }
     }
-  }
 
-  return $data;
+    return $data;
 }
 
 /**
@@ -172,17 +299,18 @@ function sp_webformautoaddress_pcapi_lookup($postal_code, $house_number) {
  * @return string
  *   The normalized postal code.
  */
-function sp_webformautoaddress_parse_postal_code($postal_code) {
-  // First, remove any whitespaces.
-  $postal_code = str_replace(' ', '', trim($postal_code));
+function sp_webformautoaddress_parse_postal_code($postal_code)
+{
+    // First, remove any whitespaces.
+    $postal_code = str_replace(' ', '', trim($postal_code));
 
-  // If the postal code is in the form of 1234AB, than return the trimmed
-  // version.
-  if ((boolean) preg_match('~^\d{4}[[:alpha:]]{2}$~', $postal_code)) {
-    return $postal_code;
-  }
+    // If the postal code is in the form of 1234AB, than return the trimmed
+    // version.
+    if ((boolean) preg_match('~^\d{4}[[:alpha:]]{2}$~', $postal_code)) {
+        return $postal_code;
+    }
 
-  return '';
+    return '';
 }
 
 /**
@@ -195,46 +323,49 @@ function sp_webformautoaddress_parse_postal_code($postal_code) {
  *   Normalized version of the house number, where the first index of the array
  *   contains the number and the second value is the addition.
  */
-function sp_webformautoaddress_parse_house_number($house_number_full) {
-  // Remove white spaces before and after the provided house number (including
-  // addition).
-  $house_number_full = trim($house_number_full);
+function sp_webformautoaddress_parse_house_number($house_number_full)
+{
+    // Remove white spaces before and after the provided house number (including
+    // addition).
+    $house_number_full = trim($house_number_full);
 
-  $house_number = '';
-  $house_number_addition = '';
-  if (preg_match('~^(?P<house_number>\d+)[^[:alnum:]]*(?P<addition>[[:alnum:]]*)$~', $house_number_full, $match)) {
-    $house_number = $match['house_number'];
-    $house_number_addition = !empty($match['addition']) ? $match['addition'] : '';
-  }
+    $house_number          = '';
+    $house_number_addition = '';
+    if (preg_match('~^(?P<house_number>\d+)[^[:alnum:]]*(?P<addition>[[:alnum:]]*)$~', $house_number_full, $match)) {
+        $house_number          = $match['house_number'];
+        $house_number_addition = !empty($match['addition']) ? $match['addition'] : '';
+    }
 
-  return array($house_number, $house_number_addition);
+    return array($house_number, $house_number_addition);
 }
 
 /**
  * Implements _webform_display_component().
  */
-function _webform_display_sp_address_auto($component, $value, $format = 'html') {
-  return array(
-    '#title' => $component['name'],
-    '#weight' => $component['weight'],
-    '#theme' => 'webform_display_address_auto',
-    '#theme_wrappers' => $format == 'html' ? array('webform_element') : array('webform_element_text'),
-    '#post_render' => array('webform_element_wrapper'),
-    '#component' => $component,
-    '#format' => $format,
-    '#value' => isset($value) ? sp_webformautoaddress_display_format($value) : '',
-  );
+function _webform_display_sp_address_auto($component, $value, $format = 'html')
+{
+    return array(
+        '#title'          => $component['name'],
+        '#weight'         => $component['weight'],
+        '#theme'          => 'webform_display_address_auto',
+        '#theme_wrappers' => $format == 'html' ? array('webform_element') : array('webform_element_text'),
+        '#post_render'    => array('webform_element_wrapper'),
+        '#component'      => $component,
+        '#format'         => $format,
+        '#value'          => isset($value) ? sp_webformautoaddress_display_format($value) : '',
+    );
 }
 
 /**
  * Implements _webform_theme_component().
  */
-function _webform_theme_sp_address_auto() {
-  return array(
-    'webform_display_address_auto' => array(
-      'render element' => 'element',
-    ),
-  );
+function _webform_theme_sp_address_auto()
+{
+    return array(
+        'webform_display_address_auto' => array(
+            'render element' => 'element',
+        ),
+    );
 }
 
 /**
@@ -249,50 +380,54 @@ function _webform_theme_sp_address_auto() {
  *
  * @ingroup themeable
  */
-function theme_webform_display_sp_address_auto(array $variables) {
-  $element = $variables['element'];
-  $value = $element['#format'] == 'html' ? check_plain($element['#value']) : $element['#value'];
+function theme_webform_display_sp_address_auto(array $variables)
+{
+    $element = $variables['element'];
+    $value   = $element['#format'] == 'html' ? check_plain($element['#value']) : $element['#value'];
 
-  return $value !== '' ? $value : ' ';
+    return $value !== '' ? $value : ' ';
 }
 
 /**
  * Implements _webform_table_component().
  */
-function _webform_table_sp_address_auto($component, $value) {
-  return check_plain($value['street_name'] . ' ' . $value['house_number']) . '<br />' .
-         check_plain($value['postal_code'] . ' ' . $value['city']);
+function _webform_table_sp_address_auto($component, $value)
+{
+    return check_plain($value['street_name'] . ' ' . $value['house_number']) . '<br />' .
+    check_plain($value['postal_code'] . ' ' . $value['city']);
 }
 
 /**
  * Implements _webform_csv_headers_component().
  */
-function _webform_csv_headers_sp_address_auto($component, $export_options) {
-  $header = array();
-  $header[0] = array('');
-  $header[1] = array($component['name']);
-  $header[2] = array();
+function _webform_csv_headers_sp_address_auto($component, $export_options)
+{
+    $header    = array();
+    $header[0] = array('');
+    $header[1] = array($component['name']);
+    $header[2] = array();
 
-  $header[2][] = t('Street name');
-  $header[2][] = t('House number');
-  $header[2][] = t('Postal code');
-  $header[2][] = t('City');
+    $header[2][] = t('Street name');
+    $header[2][] = t('House number');
+    $header[2][] = t('Postal code');
+    $header[2][] = t('City');
 
-  return $header;
+    return $header;
 }
 
 /**
  * Implements _webform_csv_data_component().
  */
-function _webform_csv_data_sp_address_auto($component, $export_options, $value) {
-  $return = array();
+function _webform_csv_data_sp_address_auto($component, $export_options, $value)
+{
+    $return = array();
 
-  $return[] = $value['street_name'];
-  $return[] = $value['house_number'];
-  $return[] = $value['postal_code'];
-  $return[] = $value['city'];
+    $return[] = $value['street_name'];
+    $return[] = $value['house_number'];
+    $return[] = $value['postal_code'];
+    $return[] = $value['city'];
 
-  return $return;
+    return $return;
 }
 
 /**
@@ -305,6 +440,7 @@ function _webform_csv_data_sp_address_auto($component, $export_options, $value) 
  * @return string
  *   A formatted string representing the address.
  */
-function sp_webformautoaddress_display_format(array $value) {
-  return $value['street_name'] . ' ' . $value['house_number'] . ', ' . $value['postal_code'] . ' ' . $value['city'];
+function sp_webformautoaddress_display_format(array $value)
+{
+    return $value['street_name'] . ' ' . $value['house_number'] . ', ' . $value['postal_code'] . ' ' . $value['city'];
 }
