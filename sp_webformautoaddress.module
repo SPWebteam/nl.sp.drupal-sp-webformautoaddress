@@ -166,7 +166,7 @@ function _webform_render_sp_address_auto($component, $value = NULL, $filter = TR
 
   $elements['postal_code'] = array(
     '#type' => 'textfield',
-    '#title' => t('Postal code'),
+    '#title' => 'Postcode',
     '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
     '#default_value' => isset($value['postal_code']) ? $value['postal_code'] : '',
     '#required' => $component['required'],
@@ -178,7 +178,7 @@ function _webform_render_sp_address_auto($component, $value = NULL, $filter = TR
 
   $elements['house_number'] = array(
     '#type' => 'textfield',
-    '#title' => t('House number'),
+    '#title' => 'Huisnummer',
     '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
     '#default_value' => isset($value['house_number']) ? $value['house_number'] : '',
     '#required' => $component['required'],
@@ -190,7 +190,7 @@ function _webform_render_sp_address_auto($component, $value = NULL, $filter = TR
 
   $elements['street_name'] = array(
     '#type' => 'textfield',
-    '#title' => t('Street name'),
+    '#title' => 'Straat',
     '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
     '#default_value' => isset($value['street_name']) ? $value['street_name'] : '',
     '#required' => $component['required'],
@@ -201,7 +201,7 @@ function _webform_render_sp_address_auto($component, $value = NULL, $filter = TR
 
   $elements['city'] = array(
     '#type' => 'textfield',
-    '#title' => t('City'),
+    '#title' => 'Plaats',
     '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
     '#default_value' => isset($value['city']) ? $value['city'] : '',
     '#required' => $component['required'],
@@ -231,16 +231,16 @@ function _webform_render_sp_address_auto($component, $value = NULL, $filter = TR
   // Set the label as a place holder.
   if ($component['extra']['placeholders']) {
     $elements['postal_code']['#title_display'] = 'invisible';
-    $elements['postal_code']['#attributes']['placeholder'] = t('Postal code');
+    $elements['postal_code']['#attributes']['placeholder'] = 'Postcode';
 
     $elements['house_number']['#title_display'] = 'invisible';
-    $elements['house_number']['#attributes']['placeholder'] = t('House number');
+    $elements['house_number']['#attributes']['placeholder'] = 'Huisnummer';
 
     $elements['street_name']['#title_display'] = 'invisible';
-    $elements['street_name']['#attributes']['placeholder'] = t('Street name');
+    $elements['street_name']['#attributes']['placeholder'] = 'Straat';
 
     $elements['city']['#title_display'] = 'invisible';
-    $elements['city']['#attributes']['placeholder'] = t('City');
+    $elements['city']['#attributes']['placeholder'] = 'Plaats';
   }
 
   return $elements;
@@ -477,10 +477,10 @@ function _webform_csv_headers_sp_address_auto($component, $export_options) {
   $header[1] = array($component['name']);
   $header[2] = array();
 
-  $header[2][] = t('Street name');
-  $header[2][] = t('House number');
-  $header[2][] = t('Postal code');
-  $header[2][] = t('City');
+  $header[2][] = 'Straat';
+  $header[2][] = 'Huisnummer';
+  $header[2][] = 'Postcode';
+  $header[2][] = 'Plaats';
 
   return $header;
 }
