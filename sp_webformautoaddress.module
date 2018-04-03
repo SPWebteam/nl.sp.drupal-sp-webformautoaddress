@@ -47,7 +47,12 @@ function sp_webformautoaddress_admin_settings_form() {
     '#title'         => 'Key',
     '#default_value' => variable_get('sp_webformautoaddress_pro6pp_key'),
     '#description'   => 'p6pp api key',
-    '#required'      => true,
+  );
+
+  $form['sp_webformautoaddress_show_missing_pro6pp_key_message_on_form'] = array(
+    '#type' => 'checkbox',
+    '#title' => 'Show missing pro6pp key message on forms',
+    '#default_value' => variable_get('sp_webformautoaddress_show_missing_pro6pp_key_message_on_form', TRUE),
   );
 
   return system_settings_form($form);
@@ -225,7 +230,10 @@ function _webform_render_sp_address_auto($component, $value = NULL, $filter = TR
       'class' => array(drupal_html_class('ajax-callback-city--' . $component['form_key'])),
     );
   } else {
-    drupal_set_message(t('Pro6pp key is not not set for this form'), 'error', FALSE);
+    $show_message = variable_get('sp_webformautoaddress_show_missing_pro6pp_key_message_on_form', TRUE);
+    if ($show_message) {
+      drupal_set_message(t('Pro6pp key is not not set for this form'), 'error', FALSE);
+    }
   }
 
   // Set the label as a place holder.
