@@ -1,8 +1,9 @@
 name = SP Webform Auto Address
-description = Adds an Dutch address component to Webform. The API of pro6pp is used to automatically fill in the streetname and city when the users provides the postal code and house number. 
+description = Adds an Dutch address component to Webform. The API of Procurios is used to automatically fill in the streetname and city when the users provides the postal code and house number. 
 core = 7.x
 files[] = sp_webformautoaddress.test
 dependencies[] = webform
+dependencies[] = procapi
 package = Webform
 
 

@@ -4,86 +4,6 @@
  * @file
  * Webform Auto Address component.
  */
-/**
- * Implements hook_menu().
- * @return array Menu items
- */
-function sp_webformautoaddress_menu() {
-
-  $items = array();
-
-  $items['admin/config/content/autocomplete_postcode'] = array(
-    'title'            => 'Postcode autocomplete',
-    'description'      => 'Instellingen voor adres autocomplete.',
-    'type'             => MENU_NORMAL_ITEM,
-    'page callback'    => 'drupal_get_form',
-    'page arguments'   => array('sp_webformautoaddress_admin_settings_form'),
-    'access arguments'  => array('access administration pages'),
-  );
-
-  $items['admin/config/content/autocomplete_postcode/settings'] = array(
-    'title'            => 'Instellingen',
-    'type'             => MENU_DEFAULT_LOCAL_TASK,
-    'access arguments'  => array('access administration pages'),
-  );
-
-  return $items;
-}
-
-/**
- * pro6pp API settings form
- * @return array Form
- */
-function sp_webformautoaddress_admin_settings_form() {
-
-  $form = array();
-
-  $form['sp_webformautoaddress_description_autocomplete'] = array(
-    '#markup' => '<h3>Instellingen</h3><p>Stel hieronder de API-instellingen in voor de integratie met pro6pp.</p>',
-  );
-
-  $form['sp_webformautoaddress_pro6pp_key'] = array(
-    '#type'          => 'textfield',
-    '#title'         => 'Key',
-    '#default_value' => variable_get('sp_webformautoaddress_pro6pp_key'),
-    '#description'   => 'p6pp api key',
-  );
-
-  $form['sp_webformautoaddress_show_missing_pro6pp_key_message_on_form'] = array(
-    '#type' => 'checkbox',
-    '#title' => 'Show missing pro6pp key message on forms',
-    '#default_value' => variable_get('sp_webformautoaddress_show_missing_pro6pp_key_message_on_form', TRUE),
-  );
-
-  return system_settings_form($form);
-}
-
-/**
- * Admin block function. (Block links are added by other modules)
- * @return null
- */
-function sp_webformautoaddress_admin_block() {
-  return null;
-}
-
-
-/**
- * Implements hook_help().
- */
-function sp_webformautoaddress_help($path, $arg) {
-  switch ($path) {
-    case 'admin/help#webformautoaddress':
-      // Construct the path of this module's readme file.
-      $path_readme = drupal_get_path('module', 'webformautoaddress') . '/README.txt';
-
-      // If the readme is available, return the contents.
-      if (file_exists($path_readme)) {
-        $readme = file_get_contents($path_readme);
-
-        return '<h1>README.txt</h1><pre>' . check_plain($readme) . '</pre>';
-      }
-  }
-}
 
 /**
  * Implements hook_webform_component_info().
@@ -93,7 +13,7 @@ function sp_webformautoaddress_webform_component_info() {
 
   $components['sp_address_auto'] = array(
     'label' => t('Automcomplete address (SP)'),
-    'description' => t('Address is autocompleted through the API of pro6pp.nl, using postal code and house number.'),
+    'description' => t('Address is autocompleted through the API of Procurios, using postal code and house number.'),
     'features' => array(
       'analysis' => FALSE,
       'csv' => TRUE,
@@ -216,25 +136,18 @@ function _webform_render_sp_address_auto($component, $value = NULL, $filter = TR
   );
 
   // Check whether the key and secret are set.
-  if (!empty(variable_get('sp_webformautoaddress_pro6pp_key'))) {
-    $elements['postal_code']['#ajax'] = array(
-      'callback' => 'sp_webformautoaddress_ajax_callback',
-    );
-    $elements['house_number']['#ajax'] = array(
-      'callback' => 'sp_webformautoaddress_ajax_callback',
-    );
-    $elements['street_name']['#attributes'] = array(
-      'class' => array(drupal_html_class('ajax-callback-street-name--' . $component['form_key'])),
-    );
-    $elements['city']['#attributes'] = array(
-      'class' => array(drupal_html_class('ajax-callback-city--' . $component['form_key'])),
-    );
-  } else {
-    $show_message = variable_get('sp_webformautoaddress_show_missing_pro6pp_key_message_on_form', TRUE);
-    if ($show_message) {
-      drupal_set_message(t('Pro6pp key is not not set for this form'), 'error', FALSE);
-    }
-  }
+  $elements['postal_code']['#ajax'] = array(
+    'callback' => 'sp_webformautoaddress_ajax_callback',
+  );
+  $elements['house_number']['#ajax'] = array(
+    'callback' => 'sp_webformautoaddress_ajax_callback',
+  );
+  $elements['street_name']['#attributes'] = array(
+    'class' => array(drupal_html_class('ajax-callback-street-name--' . $component['form_key'])),
+  );
+  $elements['city']['#attributes'] = array(
+    'class' => array(drupal_html_class('ajax-callback-city--' . $component['form_key'])),
+  );
 
   // Set the label as a place holder.
   if ($component['extra']['placeholders']) {
@@ -267,10 +180,6 @@ function _webform_render_sp_address_auto($component, $value = NULL, $filter = TR
  *     hook_form_alter() function to add AJAX components).
  */
 function sp_webformautoaddress_ajax_callback($form, $form_state) {
-  // To authenticate to the pro6pp.nl API, we need the login information.
-  $key = variable_get('sp_webformautoaddress_pro6pp_key');
-  $secret = $form_state['triggering_element']['#webform_component']['extra']['secret'];
-
   // Get the key used for this Webform component.
   $form_key = $form_state['triggering_element']['#webform_component']['form_key'];
 
@@ -288,16 +197,16 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
 
   // Perform the lookup.
   if (!empty($postal_code) && !empty($house_number)) {
-    $data = sp_webformautoaddress_pcapi_lookup($key, $secret, $postal_code, $house_number);
+    $data = sp_webformautoaddress_pcapi_lookup($postal_code, $house_number);
 
     // React on the provided information.
-    if ($data['status'] == 'ok') {
+    if (!empty($data)) {
 
       $commands = array();
       $arguments = array(
         'formKey' => drupal_clean_css_identifier($form_key), // we are selecting by the css class in the ajax call
-        'street' => filter_xss($data['results'][0]['street']),
-        'city' => filter_xss($data['results'][0]['city']),
+        'street' => filter_xss($data['street']),
+        'city' => filter_xss($data['municipality']),
       );
       $arguments = drupal_json_encode($arguments);
       $commands[] = ajax_command_invoke(NULL, 'SPwebformAutoAddressInject', array($arguments));
@@ -313,13 +222,9 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
 /**
  * Retrieve street name and city belonging to postal code and house number.
  *
- * This function makes a call to the pro6pp.nl API to get the street name and
+ * This function makes a call to the Procurios API to get the street name and
  * city that is associated with the postal code and house number.
  *
- * @param string $key
- *   The key that should be used to identify at the pro6pp.nl API service.
- * @param string $secret
- *   The secret that belongs to the $key.
  * @param string $postal_code
  *   The postal code of the address.
  * @param string $house_number
@@ -329,7 +234,7 @@ function sp_webformautoaddress_ajax_callback($form, $form_state) {
  *   The name of the street can be found at the index 'street' and the name of
  *   the name of the city at the index 'city' in the array.
  */
-function sp_webformautoaddress_pcapi_lookup($key, $secret, $postal_code, $house_number) {
+function sp_webformautoaddress_pcapi_lookup($postal_code, $house_number) {
   // First, parse the postal code and house number (which should split the
   // addition).
   $postal_code = sp_webformautoaddress_parse_postal_code($postal_code);
@@ -348,20 +253,11 @@ function sp_webformautoaddress_pcapi_lookup($key, $secret, $postal_code, $house_
   $data = &drupal_static(__FUNCTION__);
   if (!isset($data)) {
     // When not stored in local memory, check the cache stored in the database.
-    if(FALSE) {
-    //if ($cache = cache_get($cache_key)) {
+    if ($cache = cache_get($cache_key)) {
       $data = $cache->data;
     }
     else {
-      // Construct the URL to perform the lookup with.
-      // $url = 'https://' . $key . ':' . $secret . '@api.pro6pp.nl/rest/addresses/' . $postal_code . '/' . $house_number . '/' . $house_number_addition;
-      $url = 'https://api.pro6pp.nl/v1/autocomplete?auth_key='.$key.'&nl_sixpp='.$postal_code.'&format=json';
-      $response = drupal_http_request(url($url));
-
-      // When the lookup went correctly, parse the JSON data.
-      if ($response->code == 200) {
-        $data = drupal_json_decode($response->data);
-      }
+      $data = procapi_postcode_address_lookup($postal_code, $house_number, $house_number_addition);
 
       // Store the result in the cache of the database.
       //
@@ -376,7 +272,7 @@ function sp_webformautoaddress_pcapi_lookup($key, $secret, $postal_code, $house_
 }
 
 /**
- * Parse a postal code to be used in the request to pro6pp.nl API.
+ * Parse a postal code to be used in the request to Procurios API.
  *
  * @param string $postal_code
  *   The postal code that should be normalized.
