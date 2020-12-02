@@ -245,28 +245,7 @@ function sp_webformautoaddress_pcapi_lookup($postal_code, $house_number) {
     return array();
   }
 
-  // We prevent making unnecessary lookups by caching results,
-  // also wrong lookups!
-  $cache_key = 'sp_webformautoaddress:' . $postal_code . ':' . $house_number . ':' . $house_number_addition;
-
-  // Use the local memory as the first level cache.
-  $data = &drupal_static(__FUNCTION__);
-  if (!isset($data)) {
-    // When not stored in local memory, check the cache stored in the database.
-    if ($cache = cache_get($cache_key)) {
-      $data = $cache->data;
-    }
-    else {
-      $data = procapi_postcode_address_lookup($postal_code, $house_number, $house_number_addition);
-
-      // Store the result in the cache of the database.
-      //
-      // NB: if the lookup didn't responded in a correct result, we still store
-      // a 'mark' in the database. In this way also invalid lookups will be
-      // served from cache the next time.
-      cache_set($cache_key, $data, 'cache', time() + 900);
-    }
-  }
+  $data = procapi_postcode_address_lookup($postal_code, $house_number, $house_number_addition);
 
   return $data;
 }
