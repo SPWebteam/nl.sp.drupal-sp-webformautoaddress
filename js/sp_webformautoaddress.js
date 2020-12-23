@@ -4,6 +4,34 @@
  */
 
 (function ($, Drupal, window, document, undefined) {
+
+  $(document).ready(function(){
+
+    // if you have defined a coupled postcode field (wrapper gets class postcode-coupled)
+    // keep that one in sync with the automcomplete postcode field
+      if($('.postcode-coupled input').length) {
+        $('.postcode-coupled input').on('change',function(){
+          var coupledPC = $(this).val();
+          if(coupledPC) {
+            $('#edit-submitted-adres-postal-code').val(coupledPC);
+          }
+        });
+        $('#edit-submitted-adres-postal-code').on('change',function(){
+          var coupledPC = $(this).val();
+          if(coupledPC) {
+            $('.postcode-coupled input').val(coupledPC);
+          }
+        });
+      }
+      $('input.toggle-pcc').on('change', function(){
+        if ($('input.toggle-pcc').prop('checked')) {
+          $('.postcode-coupled').hide();
+        } else {
+          $('.postcode-coupled').show();
+        }
+      });
+  });
+
     $.fn.SPwebformAutoAddressInject = function (arguments) {
       // Parse the JSON argument.
       var data = JSON.parse(arguments);
